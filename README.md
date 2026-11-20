@@ -29,7 +29,7 @@ Notes: flash only works on a camera that has one (usually the back one), and in 
 
 ## Permissions
 
-Camera, microphone (for video sound) and access to pictures and videos (for the gallery). The app asks when it first starts. Location is only asked for if a parent switches on "Save location".
+Camera, microphone (for video sound) and access to pictures and videos (for the gallery). Internet is used only for checking and downloading app updates, and only from the parent area. The app asks when it first starts. Location is only asked for if a parent switches on "Save location".
 
 ## Getting the APK
 
@@ -40,7 +40,7 @@ The app is built by GitHub Actions on every push to `main`, and each build publi
 
 The version number is the one set in `.github/workflows/build.yml` plus the build number. Every build is signed with the same key (`app/debug.keystore`), so new APKs install over the old one. That key is for personal testing only and is not suitable for the Play Store.
 
-To update, install the newest release over the old one (nothing is lost). The app has no in-app updater yet.
+To update, install the newest release over the old one (nothing is lost). You can also update from inside the app: open the parent area and, if a newer release exists, it asks **Install** or **Skip** (or use **App updates > Check for updates**). The first time, Android asks you to allow Toddler Camera to install apps; after that you just confirm on Android's own screen. The toddler never sees this.
 
 ## Project layout
 
@@ -53,6 +53,7 @@ To update, install the newest release over the old one (nothing is lost). The ap
 - `Media.kt` – reads pictures and videos from the device
 - `Sounds.kt` – shutter and recording sounds
 - `Icons.kt` – the round buttons and their drawn icons (so they look the same on every phone)
+- `Updater.kt` and `InstallReceiver.kt` – in-app update check, download and install (parent area only)
 - `Ui.kt` – colours and button helper
 - `app/src/main/res` – the app icon (an adaptive icon drawn as vectors, with a one-colour version for themed icons)
 - `.github/workflows/build.yml` – cloud build that produces the APK and publishes the release
@@ -60,5 +61,4 @@ To update, install the newest release over the old one (nothing is lost). The ap
 ## Ideas for later
 
 - Companion parent app to view pictures remotely
-- In-app updater (as in Caravan Leveller)
 - Landscape layout and remote-control (D-pad) navigation for TV use
