@@ -1,6 +1,8 @@
 # Toddler Camera
 
-A stripped-down camera app for toddlers: big buttons, nothing to get lost in.
+A stripped-down camera app for toddlers: big buttons, nothing to get lost in. Photos and videos, front and back camera, a simple gallery, and a PIN-protected parent area for everything else.
+
+Built with Kotlin and CameraX, with the screens drawn in code. Needs Android 10 or newer.
 
 ## What it does
 
@@ -38,24 +40,25 @@ The app is built by GitHub Actions on every push to `main`, and each build publi
 
 The version number is the one set in `.github/workflows/build.yml` plus the build number. Every build is signed with the same key (`app/debug.keystore`), so new APKs install over the old one. That key is for personal testing only and is not suitable for the Play Store.
 
-Needs Android 10 or newer.
+To update, install the newest release over the old one (nothing is lost). The app has no in-app updater yet.
 
 ## Project layout
 
 - `MainActivity.kt` – camera screen, photo and video capture, time limit
+- `GalleryActivity.kt` – grid of everything on the device
+- `ViewerActivity.kt` – full-screen picture or video
 - `ParentSettingsActivity.kt` – the parent settings screen
 - `Settings.kt` – all saved settings, the PIN and the play-time session
 - `Gate.kt` – PIN prompt and forgot-PIN reset
-- `Sounds.kt` – shutter and recording sounds
-- `app/src/main/res` – the app icon (an adaptive icon drawn as vectors, with a one-colour version for themed icons)
-- `GalleryActivity.kt` – grid of everything on the device
-- `ViewerActivity.kt` – full-screen picture or video
 - `Media.kt` – reads pictures and videos from the device
+- `Sounds.kt` – shutter and recording sounds
 - `Icons.kt` – the round buttons and their drawn icons (so they look the same on every phone)
 - `Ui.kt` – colours and button helper
+- `app/src/main/res` – the app icon (an adaptive icon drawn as vectors, with a one-colour version for themed icons)
 - `.github/workflows/build.yml` – cloud build that produces the APK and publishes the release
 
 ## Ideas for later
 
 - Companion parent app to view pictures remotely
+- In-app updater (as in Caravan Leveller)
 - Landscape layout and remote-control (D-pad) navigation for TV use
