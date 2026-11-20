@@ -47,6 +47,7 @@ Needs Android 10 or newer.
 - `Settings.kt` – all saved settings, the PIN and the play-time session
 - `Gate.kt` – PIN prompt and forgot-PIN reset
 - `Sounds.kt` – shutter and recording sounds
+- `app/src/main/res` – the app icon (an adaptive icon drawn as vectors, with a one-colour version for themed icons)
 - `GalleryActivity.kt` – grid of everything on the device
 - `ViewerActivity.kt` – full-screen picture or video
 - `Media.kt` – reads pictures and videos from the device
