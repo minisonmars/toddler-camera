@@ -4,16 +4,16 @@ A stripped-down camera app for toddlers: big buttons, nothing to get lost in.
 
 ## What it does
 
-- **📷 / 🎥** at the top switch between taking pictures and recording video.
-- The big round **centre button** takes a picture, or starts and stops a video (red, with a ■ while recording).
-- **🔄** switches between the front and back camera.
-- **🖼** opens the gallery: every picture and video on the device, newest first, as big tiles. Tap one to open it, and use ⬅ ➡ to move through them and ✖ to close. Videos play when opened; tap to pause.
+- The **camera and video-camera icons** at the top switch between taking pictures and recording video.
+- The big round **centre button** takes a picture, or starts and stops a video (red, with a white square while recording).
+- The **flip icon** switches between the front and back camera.
+- The **picture icon** opens the gallery: every picture and video on the device, newest first, as big tiles. Tap one to open it, and use the left and right arrows to move through them and the red cross to close. Videos play when opened; tap to pause.
 - There is deliberately **no zoom, no flash, no settings and no delete button**.
 - New pictures are saved to `Pictures/ToddlerCamera` and videos to `Movies/ToddlerCamera`, so they also show up in the normal gallery app.
 
 ## Parent menu and toddler lock
 
-Hold the small **⚙** in the top-right corner for two seconds to open the parent menu:
+Hold the small **gear** in the top-right corner for two seconds to open the parent menu:
 
 - **Toddler lock ON/OFF**: when on, the app uses Android screen pinning so the toddler can't leave it, and the back button does nothing. Android asks you to confirm pinning the first time. It is **off by default**. To leave a pinned app without the menu, hold Back and Overview together (or swipe up and hold, on gesture navigation).
 - **Close app**.
@@ -39,7 +39,8 @@ Needs Android 10 or newer.
 - `GalleryActivity.kt` – grid of everything on the device
 - `ViewerActivity.kt` – full-screen picture or video
 - `Media.kt` – reads pictures and videos from the device
-- `Ui.kt` – big round buttons
+- `Icons.kt` – the round buttons and their drawn icons (so they look the same on every phone)
+- `Ui.kt` – colours and button helper
 - `.github/workflows/build.yml` – cloud build that produces the APK and publishes the release
 
 ## Ideas for later

@@ -51,7 +51,7 @@ class GalleryActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(Ui.dp(context, 16), Ui.dp(context, 24), Ui.dp(context, 16), Ui.dp(context, 8))
         }
-        val back = Ui.roundButton(this, "◀", Ui.BLUE, 72, 30f)
+        val back = Ui.roundButton(this, Icon.ARROW_LEFT, Ui.BLUE, 72, "Back")
         back.setOnClickListener { finish() }
         top.addView(back)
         top.addView(TextView(this).apply {
@@ -134,13 +134,9 @@ class GalleryActivity : Activity() {
                     FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                 )
                 addView(
-                    TextView(context).apply {
-                        text = "▶"
-                        textSize = 40f
-                        setTextColor(Color.WHITE)
-                        setShadowLayer(8f, 0f, 0f, Color.BLACK)
-                    },
-                    FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    Ui.roundButton(context, Icon.PLAY, Color.argb(150, 0, 0, 0), 52, "Video")
+                        .apply { isFocusable = false },
+                    FrameLayout.LayoutParams(Ui.dp(context, 52), Ui.dp(context, 52))
                         .apply { gravity = Gravity.CENTER }
                 )
             }

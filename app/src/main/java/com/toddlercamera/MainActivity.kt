@@ -6,7 +6,6 @@ import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -16,7 +15,6 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -46,13 +44,12 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var previewView: PreviewView
     private lateinit var messageView: TextView
-    private lateinit var photoModeBtn: Button
-    private lateinit var videoModeBtn: Button
-    private lateinit var galleryBtn: Button
-    private lateinit var captureBtn: Button
-    private lateinit var flipBtn: Button
-    private lateinit var gearBtn: Button
-    private lateinit var captureBg: GradientDrawable
+    private lateinit var photoModeBtn: RoundIconButton
+    private lateinit var videoModeBtn: RoundIconButton
+    private lateinit var galleryBtn: RoundIconButton
+    private lateinit var captureBtn: RoundIconButton
+    private lateinit var flipBtn: RoundIconButton
+    private lateinit var gearBtn: RoundIconButton
 
     private var cameraProvider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
@@ -138,8 +135,8 @@ class MainActivity : ComponentActivity() {
         )
 
         // Top: photo / video choice
-        photoModeBtn = Ui.roundButton(this, "📷", Ui.BLUE, 76)
-        videoModeBtn = Ui.roundButton(this, "🎥", Ui.ORANGE, 76)
+        photoModeBtn = Ui.roundButton(this, Icon.CAMERA, Ui.BLUE, 76, "Photo mode")
+        videoModeBtn = Ui.roundButton(this, Icon.VIDEO, Ui.ORANGE, 76, "Video mode")
         val modes = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -155,7 +152,7 @@ class MainActivity : ComponentActivity() {
         )
 
         // Small parent button, top right: hold for two seconds
-        gearBtn = Ui.roundButton(this, "⚙", Ui.DARK, 44, 18f)
+        gearBtn = Ui.roundButton(this, Icon.GEAR, Ui.DARK, 44, "Parent menu (hold)")
         root.addView(
             gearBtn,
             FrameLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)).apply {
@@ -166,10 +163,9 @@ class MainActivity : ComponentActivity() {
         )
 
         // Bottom: gallery, take picture / record, flip camera
-        galleryBtn = Ui.roundButton(this, "🖼", Ui.BLUE, 92)
-        flipBtn = Ui.roundButton(this, "🔄", Ui.PURPLE, 92)
-        captureBtn = Ui.roundButton(this, "", Color.WHITE, 116, 40f)
-        captureBg = captureBtn.background as GradientDrawable
+        galleryBtn = Ui.roundButton(this, Icon.GALLERY, Ui.BLUE, 92, "Gallery")
+        flipBtn = Ui.roundButton(this, Icon.FLIP, Ui.PURPLE, 92, "Switch camera")
+        captureBtn = Ui.roundButton(this, Icon.NONE, Color.WHITE, 116, "Take picture")
 
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -207,7 +203,7 @@ class MainActivity : ComponentActivity() {
         setMargins(Ui.dp(this@MainActivity, 12), 0, Ui.dp(this@MainActivity, 12), 0)
     }
 
-    private fun cell(button: Button): FrameLayout = FrameLayout(this).apply {
+    private fun cell(button: android.view.View): FrameLayout = FrameLayout(this).apply {
         addView(
             button,
             FrameLayout.LayoutParams(button.layoutParams.width, button.layoutParams.height).apply {
@@ -228,13 +224,15 @@ class MainActivity : ComponentActivity() {
         galleryBtn.alpha = if (busy) 0.4f else 1f
 
         if (!videoMode) {
-            captureBg.setColor(Color.WHITE)
-            captureBg.setStroke(Ui.dp(this, 8), Ui.RED)
-            captureBtn.text = ""
+            captureBtn.fill = Color.WHITE
+            captureBtn.ring = Ui.RED
+            captureBtn.icon = Icon.NONE
+            captureBtn.contentDescription = "Take picture"
         } else {
-            captureBg.setColor(Ui.RED)
-            captureBg.setStroke(Ui.dp(this, 8), Color.WHITE)
-            captureBtn.text = if (busy) "■" else ""
+            captureBtn.fill = Ui.RED
+            captureBtn.ring = Color.WHITE
+            captureBtn.icon = if (busy) Icon.STOP else Icon.NONE
+            captureBtn.contentDescription = if (busy) "Stop recording" else "Start recording"
         }
     }
 

@@ -48,9 +48,9 @@ class ViewerActivity : Activity() {
         // Tap a video to pause or play
         videoView.setOnClickListener { if (videoView.isPlaying) videoView.pause() else videoView.start() }
 
-        val prev = Ui.roundButton(this, "⬅", Ui.BLUE, 84, 34f)
-        val close = Ui.roundButton(this, "✖", Ui.RED, 84, 34f)
-        val next = Ui.roundButton(this, "➡", Ui.BLUE, 84, 34f)
+        val prev = Ui.roundButton(this, Icon.ARROW_LEFT, Ui.BLUE, 84, "Previous")
+        val close = Ui.roundButton(this, Icon.CLOSE, Ui.RED, 84, "Close")
+        val next = Ui.roundButton(this, Icon.ARROW_RIGHT, Ui.BLUE, 84, "Next")
         prev.setOnClickListener { show((index - 1 + items.size) % items.size) }
         next.setOnClickListener { show((index + 1) % items.size) }
         close.setOnClickListener { finish() }
