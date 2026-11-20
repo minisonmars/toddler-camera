@@ -84,6 +84,10 @@ class GalleryActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (Session.expired(Settings(this))) {
+            finish() // time is up; the camera screen takes over
+            return
+        }
         refresh()
     }
 
@@ -96,7 +100,7 @@ class GalleryActivity : Activity() {
 
     private fun refresh() {
         if (mediaPermissions().any { granted(it) }) {
-            items = Media.load(this)
+            items = Media.load(this, Settings(this))
             adapter.notifyDataSetChanged()
             if (items.isEmpty()) {
                 emptyView.text = "No pictures or videos yet"

@@ -8,19 +8,26 @@ A stripped-down camera app for toddlers: big buttons, nothing to get lost in.
 - The big round **centre button** takes a picture, or starts and stops a video (red, with a white square while recording).
 - The **flip icon** switches between the front and back camera.
 - The **picture icon** opens the gallery: every picture and video on the device, newest first, as big tiles. Tap one to open it, and use the left and right arrows to move through them and the red cross to close. Videos play when opened; tap to pause.
-- There is deliberately **no zoom, no flash, no settings and no delete button**.
+- There is deliberately **no zoom, no settings for the toddler and no delete button**.
 - New pictures are saved to `Pictures/ToddlerCamera` and videos to `Movies/ToddlerCamera`, so they also show up in the normal gallery app.
 
-## Parent menu and toddler lock
+## Parent settings
 
-Hold the small **gear** in the top-right corner for two seconds to open the parent menu:
+Hold the small **gear** in the top-right corner for two seconds, then enter the PIN (default **3580**) to open the parent settings. Every change is saved and applied straight away.
 
-- **Toddler lock ON/OFF**: when on, the app uses Android screen pinning so the toddler can't leave it, and the back button does nothing. Android asks you to confirm pinning the first time. It is **off by default**. To leave a pinned app without the menu, hold Back and Overview together (or swipe up and hold, on gesture navigation).
-- **Close app**.
+- **What your toddler can use**: switch the photo camera, video camera and gallery on or off. A switched-off feature's button disappears. At least photo or video must stay on.
+- **Gallery**: show everything on the device or only Toddler Camera's own pictures and videos, and choose pictures and videos, pictures only or videos only.
+- **Camera**: start with the back camera, front camera or the last one used; picture size (maximum, high about 12 MP, medium about 5 MP, low about 2 MP); flash off, auto or on; shutter and recording sounds; save location in pictures and videos.
+- **Video**: quality (SD, HD, Full HD, 4K; the closest the phone supports is used); longest video of 1, 2 or 5 minutes or no limit; light on while recording.
+- **Toddler protection**: toddler lock (screen pinning, with the back button disabled) and an optional play time limit. When time is up the screen goes blank until a parent holds the gear and enters the PIN.
+- **Parent PIN**: change the PIN and set a recovery word. **Forgot PIN?** on the PIN screen resets it to the default if you give the recovery word. With no recovery word set, clear the app's storage in Android Settings (this also resets all settings).
+- **This device**: free storage space, back to the camera, and close the app.
+
+Notes: flash only works on a camera that has one (usually the back one), and in video "light on" means a steady torch. Location uses the phone's last known position, so it can be slightly out of date. Pinned apps can be left without the menu by holding Back and Overview together.
 
 ## Permissions
 
-Camera, microphone (for video sound) and access to pictures and videos (for the gallery). The app asks when it first starts.
+Camera, microphone (for video sound) and access to pictures and videos (for the gallery). The app asks when it first starts. Location is only asked for if a parent switches on "Save location".
 
 ## Getting the APK
 
@@ -35,7 +42,10 @@ Needs Android 10 or newer.
 
 ## Project layout
 
-- `MainActivity.kt` – camera screen, photo and video capture, parent menu
+- `MainActivity.kt` – camera screen, photo and video capture, time limit
+- `ParentSettingsActivity.kt` – the parent settings screen
+- `Settings.kt` – all saved settings, the PIN and the play-time session
+- `Gate.kt` – PIN prompt and forgot-PIN reset
 - `GalleryActivity.kt` – grid of everything on the device
 - `ViewerActivity.kt` – full-screen picture or video
 - `Media.kt` – reads pictures and videos from the device
@@ -47,5 +57,3 @@ Needs Android 10 or newer.
 
 - Companion parent app to view pictures remotely
 - Landscape layout and remote-control (D-pad) navigation for TV use
-- Optional shutter sound or animation
-- Optional video length limit

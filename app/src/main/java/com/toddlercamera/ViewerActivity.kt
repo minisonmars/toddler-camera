@@ -26,7 +26,7 @@ class ViewerActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        items = Media.load(this)
+        items = Media.load(this, Settings(this))
         if (items.isEmpty()) {
             finish()
             return

@@ -1,18 +1,22 @@
 package com.toddlercamera
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.location.Location
+import android.location.LocationManager
+import android.media.MediaActionSound
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.util.Size
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -22,10 +26,14 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.MediaStoreOutputOptions
@@ -42,8 +50,13 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
+    private lateinit var settings: Settings
+
     private lateinit var previewView: PreviewView
     private lateinit var messageView: TextView
+    private lateinit var timeUpView: FrameLayout
+    private lateinit var modes: LinearLayout
+    private lateinit var galleryCell: View
     private lateinit var photoModeBtn: RoundIconButton
     private lateinit var videoModeBtn: RoundIconButton
     private lateinit var galleryBtn: RoundIconButton
@@ -52,15 +65,27 @@ class MainActivity : ComponentActivity() {
     private lateinit var gearBtn: RoundIconButton
 
     private var cameraProvider: ProcessCameraProvider? = null
+    private var camera: Camera? = null
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var recording: Recording? = null
+    private var starting = false
+    private var torchOn = false
+    private var lastSig = ""
 
     private var videoMode = false
     private var useFront = false
 
     private val holdHandler = Handler(Looper.getMainLooper())
-    private val prefs by lazy { getSharedPreferences("toddler", MODE_PRIVATE) }
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val sound = MediaActionSound()
+
+    private val ticker = object : Runnable {
+        override fun run() {
+            checkTimeLimit()
+            uiHandler.postDelayed(this, 2000)
+        }
+    }
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -83,13 +108,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        settings = Settings(this)
+        useFront = when (settings.startCamera) {
+            "front" -> true
+            "last" -> settings.lastFront
+            else -> false
+        }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         buildScreen()
 
-        // With the toddler lock on, the back button does nothing
+        sound.load(MediaActionSound.SHUTTER_CLICK)
+        sound.load(MediaActionSound.START_VIDEO_RECORDING)
+        sound.load(MediaActionSound.STOP_VIDEO_RECORDING)
+
+        // With the toddler lock on (or time up), the back button does nothing
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (!prefs.getBoolean("lock", false)) {
+                if (!settings.lock && timeUpView.visibility != View.VISIBLE) {
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
                 }
@@ -101,13 +136,26 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (prefs.getBoolean("lock", false)) {
+        applyFeatures()
+        if (settings.lock) {
             try {
                 startLockTask()
             } catch (e: Exception) {
                 // Pinning not available; carry on without it
             }
         }
+        uiHandler.post(ticker)
+        if (cameraProvider != null && signature() != lastSig) bindUseCases()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        uiHandler.removeCallbacks(ticker)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sound.release()
     }
 
     // ---------- Screen ----------
@@ -117,27 +165,21 @@ class MainActivity : ComponentActivity() {
         root.setBackgroundColor(Color.BLACK)
 
         previewView = PreviewView(this)
-        root.addView(
-            previewView,
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-        )
+        root.addView(previewView, matchParent())
 
         messageView = TextView(this).apply {
             textSize = 22f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             setPadding(Ui.dp(context, 24), 0, Ui.dp(context, 24), 0)
-            visibility = android.view.View.GONE
+            visibility = View.GONE
         }
-        root.addView(
-            messageView,
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-        )
+        root.addView(messageView, matchParent())
 
-        // Top: photo / video choice
+        // Top: photo / video choice (hidden unless both are switched on)
         photoModeBtn = Ui.roundButton(this, Icon.CAMERA, Ui.BLUE, 76, "Photo mode")
         videoModeBtn = Ui.roundButton(this, Icon.VIDEO, Ui.ORANGE, 76, "Video mode")
-        val modes = LinearLayout(this).apply {
+        modes = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
@@ -171,8 +213,9 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        for (b in listOf(galleryBtn, captureBtn, flipBtn)) {
-            bar.addView(cell(b), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        galleryCell = cell(galleryBtn)
+        for (c in listOf(galleryCell, cell(captureBtn), cell(flipBtn))) {
+            bar.addView(c, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         root.addView(
             bar,
@@ -181,6 +224,32 @@ class MainActivity : ComponentActivity() {
                 bottomMargin = Ui.dp(this@MainActivity, 36)
             }
         )
+
+        // "Time's up" cover, only shown when a time limit is set
+        timeUpView = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            visibility = View.GONE
+            isClickable = true // blocks touches to the camera underneath
+        }
+        timeUpView.addView(
+            TextView(this).apply {
+                text = "All done for now"
+                textSize = 32f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+            },
+            matchParent()
+        )
+        val unlockGear = Ui.roundButton(this, Icon.GEAR, Ui.DARK, 44, "Parent unlock (hold)")
+        timeUpView.addView(
+            unlockGear,
+            FrameLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)).apply {
+                gravity = Gravity.TOP or Gravity.END
+                topMargin = Ui.dp(this@MainActivity, 12)
+                marginEnd = Ui.dp(this@MainActivity, 12)
+            }
+        )
+        root.addView(timeUpView, matchParent())
         setContentView(root)
 
         // Actions
@@ -189,21 +258,23 @@ class MainActivity : ComponentActivity() {
         captureBtn.setOnClickListener { if (videoMode) toggleRecording() else takePhoto() }
         flipBtn.setOnClickListener { flipCamera() }
         galleryBtn.setOnClickListener { startActivity(Intent(this, GalleryActivity::class.java)) }
-        gearBtn.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> holdHandler.postDelayed({ showParentMenu() }, 2000)
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> holdHandler.removeCallbacksAndMessages(null)
-            }
-            true
+        attachHold(gearBtn) {
+            Gate.ask(this, settings) { startActivity(Intent(this, ParentSettingsActivity::class.java)) }
+        }
+        attachHold(unlockGear) {
+            Gate.ask(this, settings) { unlockAfterTimeUp() }
         }
         updateButtons()
     }
+
+    private fun matchParent() =
+        FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 
     private fun spaced(sizeDp: Int) = LinearLayout.LayoutParams(Ui.dp(this, sizeDp), Ui.dp(this, sizeDp)).apply {
         setMargins(Ui.dp(this@MainActivity, 12), 0, Ui.dp(this@MainActivity, 12), 0)
     }
 
-    private fun cell(button: android.view.View): FrameLayout = FrameLayout(this).apply {
+    private fun cell(button: View): FrameLayout = FrameLayout(this).apply {
         addView(
             button,
             FrameLayout.LayoutParams(button.layoutParams.width, button.layoutParams.height).apply {
@@ -212,8 +283,33 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    /** A button that only reacts when held for two seconds. */
+    private fun attachHold(button: View, action: () -> Unit) {
+        button.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> holdHandler.postDelayed({ action() }, 2000)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> holdHandler.removeCallbacksAndMessages(null)
+            }
+            true
+        }
+    }
+
+    /** Show or hide buttons according to the parent's settings. */
+    private fun applyFeatures() {
+        val photo = settings.photoEnabled
+        val video = settings.videoEnabled
+        if (photo && !video) videoMode = false
+        if (video && !photo) videoMode = true
+        val both = photo && video
+        photoModeBtn.visibility = if (both) View.VISIBLE else View.GONE
+        videoModeBtn.visibility = if (both) View.VISIBLE else View.GONE
+        // Invisible (not gone) so the big button stays in the middle
+        galleryCell.visibility = if (settings.galleryEnabled) View.VISIBLE else View.INVISIBLE
+        updateButtons()
+    }
+
     private fun updateButtons() {
-        val busy = recording != null
+        val busy = recording != null || starting
         photoModeBtn.alpha = if (!videoMode) 1f else 0.45f
         videoModeBtn.alpha = if (videoMode) 1f else 0.45f
         photoModeBtn.isEnabled = !busy
@@ -231,20 +327,38 @@ class MainActivity : ComponentActivity() {
         } else {
             captureBtn.fill = Ui.RED
             captureBtn.ring = Color.WHITE
-            captureBtn.icon = if (busy) Icon.STOP else Icon.NONE
-            captureBtn.contentDescription = if (busy) "Stop recording" else "Start recording"
+            captureBtn.icon = if (recording != null) Icon.STOP else Icon.NONE
+            captureBtn.contentDescription = if (recording != null) "Stop recording" else "Start recording"
         }
+    }
+
+    // ---------- Time limit ----------
+
+    private fun checkTimeLimit() {
+        if (timeUpView.visibility != View.VISIBLE && Session.expired(settings)) showTimeUp()
+    }
+
+    private fun showTimeUp() {
+        recording?.stop()
+        timeUpView.visibility = View.VISIBLE
+        cameraProvider?.unbindAll()
+    }
+
+    private fun unlockAfterTimeUp() {
+        Session.restart()
+        timeUpView.visibility = View.GONE
+        bindUseCases()
     }
 
     // ---------- Permissions ----------
 
     private fun onPermissionsResult() {
         if (has(Manifest.permission.CAMERA)) {
-            messageView.visibility = android.view.View.GONE
+            messageView.visibility = View.GONE
             startCamera()
         } else {
             messageView.text = "The camera needs permission.\n\nTap here to allow it."
-            messageView.visibility = android.view.View.VISIBLE
+            messageView.visibility = View.VISIBLE
             messageView.setOnClickListener { permissionLauncher.launch(wantedPermissions()) }
         }
     }
@@ -254,8 +368,7 @@ class MainActivity : ComponentActivity() {
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener({
-            val provider = future.get()
-            cameraProvider = provider
+            cameraProvider = future.get()
             // A TV or tablet may only have a front camera
             if (!safeHasCamera(CameraSelector.DEFAULT_BACK_CAMERA) &&
                 safeHasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
@@ -271,7 +384,39 @@ class MainActivity : ComponentActivity() {
             false
         }
 
+    /** Changes to any of these mean the camera has to be set up again. */
+    private fun signature() =
+        "${settings.photoRes}|${settings.flash}|${settings.videoQuality}|$videoMode|$useFront"
+
+    private fun photoResolution(): ResolutionSelector {
+        val closest = ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+        val strategy = when (settings.photoRes) {
+            "high" -> ResolutionStrategy(Size(4000, 3000), closest)
+            "medium" -> ResolutionStrategy(Size(2592, 1944), closest)
+            "low" -> ResolutionStrategy(Size(1600, 1200), closest)
+            else -> ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
+        }
+        return ResolutionSelector.Builder()
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+            .setResolutionStrategy(strategy)
+            .build()
+    }
+
+    private fun flashMode() = when (settings.flash) {
+        "on" -> ImageCapture.FLASH_MODE_ON
+        "auto" -> ImageCapture.FLASH_MODE_AUTO
+        else -> ImageCapture.FLASH_MODE_OFF
+    }
+
+    private fun videoQuality(): Quality = when (settings.videoQuality) {
+        "sd" -> Quality.SD
+        "fhd" -> Quality.FHD
+        "uhd" -> Quality.UHD
+        else -> Quality.HD
+    }
+
     private fun bindUseCases() {
+        if (timeUpView.visibility == View.VISIBLE) return
         val provider = cameraProvider ?: return
         val selector =
             if (useFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
@@ -279,37 +424,39 @@ class MainActivity : ComponentActivity() {
         try {
             provider.unbindAll()
             if (videoMode) {
+                val q = videoQuality()
                 val recorder = Recorder.Builder()
-                    .setQualitySelector(
-                        QualitySelector.from(Quality.HD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))
-                    )
+                    .setQualitySelector(QualitySelector.from(q, FallbackStrategy.lowerQualityOrHigherThan(q)))
                     .build()
                 val vc = VideoCapture.withOutput(recorder)
                 videoCapture = vc
                 imageCapture = null
-                provider.bindToLifecycle(this, selector, preview, vc)
+                camera = provider.bindToLifecycle(this, selector, preview, vc)
             } else {
                 val ic = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .setResolutionSelector(photoResolution())
+                    .setFlashMode(flashMode())
                     .build()
                 imageCapture = ic
                 videoCapture = null
-                provider.bindToLifecycle(this, selector, preview, ic)
+                camera = provider.bindToLifecycle(this, selector, preview, ic)
             }
+            lastSig = signature()
         } catch (e: Exception) {
             Toast.makeText(this, "Camera problem: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun setMode(video: Boolean) {
-        if (recording != null || videoMode == video) return
+        if (recording != null || starting || videoMode == video) return
         videoMode = video
         updateButtons()
         bindUseCases()
     }
 
     private fun flipCamera() {
-        if (recording != null) return
+        if (recording != null || starting) return
         val target =
             if (useFront) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
         if (!safeHasCamera(target)) {
@@ -317,11 +464,30 @@ class MainActivity : ComponentActivity() {
             return
         }
         useFront = !useFront
+        settings.lastFront = useFront
         bindUseCases()
+    }
+
+    private fun beep(which: Int) {
+        if (settings.shutterSound) sound.play(which)
     }
 
     private fun timestamp(): String =
         SimpleDateFormat("yyyyMMdd_HHmmss", Locale.UK).format(System.currentTimeMillis())
+
+    /** Last known position, if the parent switched location on and allowed it. */
+    private fun currentLocation(): Location? {
+        if (!settings.saveLocation) return null
+        if (!has(Manifest.permission.ACCESS_FINE_LOCATION) && !has(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            return null
+        }
+        return try {
+            val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+            lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
+        } catch (e: SecurityException) {
+            null
+        }
+    }
 
     private fun takePhoto() {
         val ic = imageCapture ?: return
@@ -330,13 +496,17 @@ class MainActivity : ComponentActivity() {
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/ToddlerCamera")
         }
-        val options = ImageCapture.OutputFileOptions.Builder(
+        val builder = ImageCapture.OutputFileOptions.Builder(
             contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
-        ).build()
-        ic.takePicture(options, ContextCompat.getMainExecutor(this),
+        )
+        currentLocation()?.let { loc ->
+            builder.setMetadata(ImageCapture.Metadata().apply { location = loc })
+        }
+        beep(MediaActionSound.SHUTTER_CLICK)
+        ic.takePicture(builder.build(), ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    Toast.makeText(this@MainActivity, "📷 Saved", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Saved", Toast.LENGTH_SHORT).show()
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -346,10 +516,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun toggleRecording() {
-        val vc = videoCapture ?: return
+        if (starting) return
         val current = recording
         if (current != null) {
-            current.stop()
+            current.stop() // the Finalize event below tidies up
+            return
+        }
+        if (settings.shutterSound) {
+            // Let the "start" beep finish so it isn't recorded
+            starting = true
+            updateButtons()
+            sound.play(MediaActionSound.START_VIDEO_RECORDING)
+            uiHandler.postDelayed({
+                starting = false
+                startRecordingNow()
+            }, 400)
+        } else {
+            startRecordingNow()
+        }
+    }
+
+    private fun startRecordingNow() {
+        val vc = videoCapture ?: run {
+            updateButtons()
             return
         }
         val values = ContentValues().apply {
@@ -357,51 +546,39 @@ class MainActivity : ComponentActivity() {
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
             put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/ToddlerCamera")
         }
-        val output = MediaStoreOutputOptions.Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+        var options = MediaStoreOutputOptions.Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
             .setContentValues(values)
-            .build()
-        var pending = vc.output.prepareRecording(this, output)
+        if (settings.videoLimitSec > 0) options = options.setDurationLimitMillis(settings.videoLimitSec * 1000L)
+        currentLocation()?.let { options = options.setLocation(it) }
+
+        var pending = vc.output.prepareRecording(this, options.build())
         if (has(Manifest.permission.RECORD_AUDIO)) pending = pending.withAudioEnabled()
+
+        // Light on while recording (back camera only, if the phone has one)
+        val cam = camera
+        if (settings.videoLight && cam != null && cam.cameraInfo.hasFlashUnit()) {
+            cam.cameraControl.enableTorch(true)
+            torchOn = true
+        }
+
         recording = pending.start(ContextCompat.getMainExecutor(this)) { event ->
             if (event is VideoRecordEvent.Finalize) {
                 recording = null
-                val msg = if (event.hasError()) "Video problem (code ${event.error})" else "🎥 Saved"
+                if (torchOn) {
+                    camera?.cameraControl?.enableTorch(false)
+                    torchOn = false
+                }
+                beep(MediaActionSound.STOP_VIDEO_RECORDING)
+                val limitHit = event.error == VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED
+                val msg = when {
+                    limitHit -> "Saved (longest video reached)"
+                    event.hasError() -> "Video problem (code ${event.error})"
+                    else -> "Saved"
+                }
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
             }
             updateButtons()
         }
         updateButtons()
-    }
-
-    // ---------- Parent menu (hold the small gear for 2 seconds) ----------
-
-    private fun showParentMenu() {
-        val lockOn = prefs.getBoolean("lock", false)
-        AlertDialog.Builder(this)
-            .setTitle("Parent menu")
-            .setItems(
-                arrayOf(if (lockOn) "Turn toddler lock OFF" else "Turn toddler lock ON", "Close app")
-            ) { _, which ->
-                when (which) {
-                    0 -> setLock(!lockOn)
-                    1 -> {
-                        try {
-                            stopLockTask()
-                        } catch (e: Exception) {
-                        }
-                        finishAffinity()
-                    }
-                }
-            }
-            .show()
-    }
-
-    private fun setLock(on: Boolean) {
-        prefs.edit().putBoolean("lock", on).apply()
-        try {
-            if (on) startLockTask() else stopLockTask()
-        } catch (e: Exception) {
-        }
-        Toast.makeText(this, if (on) "Toddler lock ON" else "Toddler lock OFF", Toast.LENGTH_SHORT).show()
     }
 }
