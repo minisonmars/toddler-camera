@@ -7,7 +7,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Location
 import android.location.LocationManager
-import android.media.MediaActionSound
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -47,6 +47,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
 
@@ -78,7 +79,9 @@ class MainActivity : ComponentActivity() {
 
     private val holdHandler = Handler(Looper.getMainLooper())
     private val uiHandler = Handler(Looper.getMainLooper())
-    private val sound = MediaActionSound()
+    private lateinit var sounds: Sounds
+    private lateinit var flashOverlay: View
+    private val thumbPool = Executors.newSingleThreadExecutor()
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -117,9 +120,7 @@ class MainActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         buildScreen()
 
-        sound.load(MediaActionSound.SHUTTER_CLICK)
-        sound.load(MediaActionSound.START_VIDEO_RECORDING)
-        sound.load(MediaActionSound.STOP_VIDEO_RECORDING)
+        sounds = Sounds()
 
         // With the toddler lock on (or time up), the back button does nothing
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -145,6 +146,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         uiHandler.post(ticker)
+        refreshThumbnail()
         if (cameraProvider != null && signature() != lastSig) bindUseCases()
     }
 
@@ -155,7 +157,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        sound.release()
+        sounds.release()
     }
 
     // ---------- Screen ----------
@@ -175,6 +177,14 @@ class MainActivity : ComponentActivity() {
             visibility = View.GONE
         }
         root.addView(messageView, matchParent())
+
+        // White flash shown when a picture is taken
+        flashOverlay = View(this).apply {
+            setBackgroundColor(Color.WHITE)
+            alpha = 0f
+            visibility = View.GONE
+        }
+        root.addView(flashOverlay, matchParent())
 
         // Top: photo / video choice (hidden unless both are switched on)
         photoModeBtn = Ui.roundButton(this, Icon.CAMERA, Ui.BLUE, 76, "Photo mode")
@@ -468,8 +478,30 @@ class MainActivity : ComponentActivity() {
         bindUseCases()
     }
 
-    private fun beep(which: Int) {
-        if (settings.shutterSound) sound.play(which)
+    private fun flashScreen() {
+        flashOverlay.animate().cancel()
+        flashOverlay.alpha = 0.85f
+        flashOverlay.visibility = View.VISIBLE
+        flashOverlay.animate().alpha(0f).setDuration(220).withEndAction {
+            flashOverlay.visibility = View.GONE
+        }.start()
+    }
+
+    /** Show the newest picture (or video) on the gallery button, if the parent wants that. */
+    private fun refreshThumbnail(hint: Uri? = null) {
+        if (!settings.galleryEnabled || !settings.galleryThumb) {
+            galleryBtn.thumbnail = null
+            return
+        }
+        thumbPool.execute {
+            val bmp = try {
+                val uri = hint ?: Media.load(this, settings, 1).firstOrNull()?.uri
+                if (uri == null) null else contentResolver.loadThumbnail(uri, Size(256, 256), null)
+            } catch (e: Exception) {
+                null
+            }
+            runOnUiThread { galleryBtn.thumbnail = bmp }
+        }
     }
 
     private fun timestamp(): String =
@@ -502,11 +534,13 @@ class MainActivity : ComponentActivity() {
         currentLocation()?.let { loc ->
             builder.setMetadata(ImageCapture.Metadata().apply { location = loc })
         }
-        beep(MediaActionSound.SHUTTER_CLICK)
+        sounds.playShutter(settings.shutter)
+        if (settings.screenFlash) flashScreen()
         ic.takePicture(builder.build(), ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     Toast.makeText(this@MainActivity, "Saved", Toast.LENGTH_SHORT).show()
+                    refreshThumbnail(output.savedUri)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -522,11 +556,11 @@ class MainActivity : ComponentActivity() {
             current.stop() // the Finalize event below tidies up
             return
         }
-        if (settings.shutterSound) {
+        if (settings.recSounds) {
             // Let the "start" beep finish so it isn't recorded
             starting = true
             updateButtons()
-            sound.play(MediaActionSound.START_VIDEO_RECORDING)
+            sounds.playRecordStart()
             uiHandler.postDelayed({
                 starting = false
                 startRecordingNow()
@@ -568,7 +602,7 @@ class MainActivity : ComponentActivity() {
                     camera?.cameraControl?.enableTorch(false)
                     torchOn = false
                 }
-                beep(MediaActionSound.STOP_VIDEO_RECORDING)
+                if (settings.recSounds) sounds.playRecordStop()
                 val limitHit = event.error == VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED
                 val msg = when {
                     limitHit -> "Saved (longest video reached)"
@@ -576,6 +610,8 @@ class MainActivity : ComponentActivity() {
                     else -> "Saved"
                 }
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+                val saved = event.outputResults.outputUri
+                if (saved != Uri.EMPTY) refreshThumbnail(saved)
             }
             updateButtons()
         }

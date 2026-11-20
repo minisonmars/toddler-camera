@@ -1,15 +1,18 @@
 package com.toddlercamera
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import android.provider.MediaStore
 
 /** Reads pictures and videos from the device, newest first, following the gallery settings. */
 object Media {
     class Item(val uri: Uri, val isVideo: Boolean)
 
-    fun load(ctx: Context, settings: Settings): List<Item> {
+    /** [limit] of 0 means everything. */
+    fun load(ctx: Context, settings: Settings, limit: Int = 0): List<Item> {
         val list = mutableListOf<Item>()
         val id = MediaStore.Files.FileColumns._ID
         val type = MediaStore.Files.FileColumns.MEDIA_TYPE
@@ -21,20 +24,28 @@ object Media {
             "videos" -> "$type=$video"
             else -> "($type=$image OR $type=$video)"
         }
-        val args = mutableListOf<String>()
+        val selArgs = mutableListOf<String>()
         if (settings.galleryScope == "app") {
             val rel = MediaStore.MediaColumns.RELATIVE_PATH
             selection += " AND ($rel LIKE ? OR $rel LIKE ?)"
-            args.add("Pictures/ToddlerCamera%")
-            args.add("Movies/ToddlerCamera%")
+            selArgs.add("Pictures/ToddlerCamera%")
+            selArgs.add("Movies/ToddlerCamera%")
+        }
+
+        val query = Bundle().apply {
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+            if (selArgs.isNotEmpty()) {
+                putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selArgs.toTypedArray())
+            }
+            putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, "${MediaStore.Files.FileColumns.DATE_ADDED} DESC")
+            if (limit > 0) putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
         }
 
         ctx.contentResolver.query(
             MediaStore.Files.getContentUri("external"),
             arrayOf(id, type),
-            selection,
-            if (args.isEmpty()) null else args.toTypedArray(),
-            "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+            query,
+            null
         )?.use { c ->
             val idCol = c.getColumnIndexOrThrow(id)
             val typeCol = c.getColumnIndexOrThrow(type)

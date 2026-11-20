@@ -32,6 +32,9 @@ class Settings(ctx: Context) {
     var galleryScope: String // "all" or "app"
         get() = getS("galleryScope", "all")
         set(v) = putS("galleryScope", v)
+    var galleryThumb: Boolean
+        get() = getB("galleryThumb", true)
+        set(v) = putB("galleryThumb", v)
     var galleryTypes: String // "both", "photos" or "videos"
         get() = getS("galleryTypes", "both")
         set(v) = putS("galleryTypes", v)
@@ -49,9 +52,15 @@ class Settings(ctx: Context) {
     var flash: String // "off", "auto" or "on"
         get() = getS("flash", "off")
         set(v) = putS("flash", v)
-    var shutterSound: Boolean
-        get() = getB("shutterSound", true)
-        set(v) = putB("shutterSound", v)
+    var shutter: String // "click", "pop", "bell", "boing", "chime", "beep" or "off"
+        get() = getS("shutter", "click")
+        set(v) = putS("shutter", v)
+    var recSounds: Boolean
+        get() = getB("recSounds", true)
+        set(v) = putB("recSounds", v)
+    var screenFlash: Boolean
+        get() = getB("screenFlash", true)
+        set(v) = putB("screenFlash", v)
     var saveLocation: Boolean
         get() = getB("saveLocation", false)
         set(v) = putB("saveLocation", v)
@@ -130,6 +139,10 @@ class Settings(ctx: Context) {
             "medium" to "Medium (about 5 MP)", "low" to "Low (about 2 MP)"
         )
         val FLASH = listOf("off" to "Off", "auto" to "Auto", "on" to "On")
+        val SHUTTER = listOf(
+            "click" to "Camera click", "pop" to "Pop", "bell" to "Bell",
+            "boing" to "Boing", "chime" to "Chime", "beep" to "Beep", "off" to "No sound"
+        )
         val VIDEO_QUALITY = listOf(
             "sd" to "Standard (SD)", "hd" to "HD (720p)", "fhd" to "Full HD (1080p)", "uhd" to "Ultra HD (4K)"
         )

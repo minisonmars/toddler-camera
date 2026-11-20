@@ -1,11 +1,15 @@
 package com.toddlercamera
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Shader
 import android.view.View
 import kotlin.math.cos
 import kotlin.math.min
@@ -25,6 +29,13 @@ class RoundIconButton(context: Context, icon: Icon, fill: Int) : View(context) {
             invalidate()
         }
     var fill: Int = fill
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    /** A picture to show in the circle instead of the icon (like the last photo in a camera app). */
+    var thumbnail: Bitmap? = null
         set(value) {
             field = value
             invalidate()
@@ -81,12 +92,34 @@ class RoundIconButton(context: Context, icon: Icon, fill: Int) : View(context) {
             canvas.drawCircle(c, c, discR - s * 0.035f - if (isFocused) s * 0.03f else 0f, paint)
         }
 
-        // Icon, drawn in a 0..1 box scaled to the button
-        canvas.save()
-        canvas.scale(s, s)
-        paint.color = Color.WHITE
-        drawIcon(canvas)
-        canvas.restore()
+        val bmp = thumbnail
+        if (bmp != null) {
+            // Last picture, cropped to a circle with a white edge
+            val r = discR - s * 0.05f
+            val side = min(bmp.width, bmp.height).toFloat()
+            val scale = 2 * r / side
+            val matrix = Matrix().apply {
+                setScale(scale, scale)
+                postTranslate(c - bmp.width * scale / 2f, c - bmp.height * scale / 2f)
+            }
+            val shader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+            shader.setLocalMatrix(matrix)
+            paint.style = Paint.Style.FILL
+            paint.shader = shader
+            canvas.drawCircle(c, c, r, paint)
+            paint.shader = null
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = s * 0.05f
+            paint.color = Color.WHITE
+            canvas.drawCircle(c, c, discR - s * 0.025f, paint)
+        } else {
+            // Icon, drawn in a 0..1 box scaled to the button
+            canvas.save()
+            canvas.scale(s, s)
+            paint.color = Color.WHITE
+            drawIcon(canvas)
+            canvas.restore()
+        }
 
         canvas.restore()
     }

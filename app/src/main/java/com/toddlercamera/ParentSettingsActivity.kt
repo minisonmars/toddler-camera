@@ -28,6 +28,7 @@ import java.util.Locale
 class ParentSettingsActivity : Activity() {
 
     private lateinit var settings: Settings
+    private lateinit var sounds: Sounds
     private lateinit var col: LinearLayout
     private lateinit var locationSwitch: Switch
     private lateinit var recoveryInfo: TextView
@@ -37,6 +38,7 @@ class ParentSettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = Settings(this)
+        sounds = Sounds()
 
         col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -59,6 +61,10 @@ class ParentSettingsActivity : Activity() {
         switchRow("Gallery", settings.galleryEnabled) { on -> settings.galleryEnabled = on; on }
 
         header("Gallery")
+        switchRow("Show the last picture on the gallery button", settings.galleryThumb) { on ->
+            settings.galleryThumb = on
+            on
+        }
         choiceRow("Show", Settings.GALLERY_SCOPE, settings.galleryScope) { settings.galleryScope = it }
         choiceRow("Which kinds", Settings.GALLERY_TYPES, settings.galleryTypes) { settings.galleryTypes = it }
 
@@ -67,7 +73,16 @@ class ParentSettingsActivity : Activity() {
         choiceRow("Picture size", Settings.PHOTO_RES, settings.photoRes) { settings.photoRes = it }
         choiceRow("Flash (pictures)", Settings.FLASH, settings.flash) { settings.flash = it }
         note("Flash only works on a camera that has one, usually the back camera.")
-        switchRow("Shutter and recording sounds", settings.shutterSound) { on -> settings.shutterSound = on; on }
+        choiceRow("Shutter sound", Settings.SHUTTER, settings.shutter) {
+            settings.shutter = it
+            sounds.playShutter(it) // a quick preview
+        }
+        note("Camera click is the phone's own sound. The others play at the media volume.")
+        switchRow("Recording start and stop sounds", settings.recSounds) { on -> settings.recSounds = on; on }
+        switchRow("Flash the screen when a picture is taken", settings.screenFlash) { on ->
+            settings.screenFlash = on
+            on
+        }
         locationSwitch = switchRow("Save location in pictures and videos", settings.saveLocation) { on ->
             if (on && !hasLocationPermission()) {
                 requestPermissions(
@@ -211,6 +226,11 @@ class ParentSettingsActivity : Activity() {
             },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         )
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sounds.release()
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

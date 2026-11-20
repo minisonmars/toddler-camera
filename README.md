@@ -16,14 +16,14 @@ A stripped-down camera app for toddlers: big buttons, nothing to get lost in.
 Hold the small **gear** in the top-right corner for two seconds, then enter the PIN (default **3580**) to open the parent settings. Every change is saved and applied straight away.
 
 - **What your toddler can use**: switch the photo camera, video camera and gallery on or off. A switched-off feature's button disappears. At least photo or video must stay on.
-- **Gallery**: show everything on the device or only Toddler Camera's own pictures and videos, and choose pictures and videos, pictures only or videos only.
-- **Camera**: start with the back camera, front camera or the last one used; picture size (maximum, high about 12 MP, medium about 5 MP, low about 2 MP); flash off, auto or on; shutter and recording sounds; save location in pictures and videos.
+- **Gallery**: show everything on the device or only Toddler Camera's own pictures and videos, and choose pictures and videos, pictures only or videos only. Optionally show the last picture taken on the gallery button, like a phone camera app.
+- **Camera**: start with the back camera, front camera or the last one used; picture size (maximum, high about 12 MP, medium about 5 MP, low about 2 MP); flash off, auto or on; shutter sound (camera click, pop, bell, boing, chime, beep or none); recording start and stop sounds; a white screen flash when a picture is taken; save location in pictures and videos.
 - **Video**: quality (SD, HD, Full HD, 4K; the closest the phone supports is used); longest video of 1, 2 or 5 minutes or no limit; light on while recording.
 - **Toddler protection**: toddler lock (screen pinning, with the back button disabled) and an optional play time limit. When time is up the screen goes blank until a parent holds the gear and enters the PIN.
 - **Parent PIN**: change the PIN and set a recovery word. **Forgot PIN?** on the PIN screen resets it to the default if you give the recovery word. With no recovery word set, clear the app's storage in Android Settings (this also resets all settings).
 - **This device**: free storage space, back to the camera, and close the app.
 
-Notes: flash only works on a camera that has one (usually the back one), and in video "light on" means a steady torch. Location uses the phone's last known position, so it can be slightly out of date. Pinned apps can be left without the menu by holding Back and Overview together.
+Notes: flash only works on a camera that has one (usually the back one), and in video "light on" means a steady torch. The app's own shutter sounds play at the media volume, so they are quiet if that is turned down. Location uses the phone's last known position, so it can be slightly out of date. Pinned apps can be left without the menu by holding Back and Overview together.
 
 ## Permissions
 
@@ -46,6 +46,7 @@ Needs Android 10 or newer.
 - `ParentSettingsActivity.kt` – the parent settings screen
 - `Settings.kt` – all saved settings, the PIN and the play-time session
 - `Gate.kt` – PIN prompt and forgot-PIN reset
+- `Sounds.kt` – shutter and recording sounds
 - `GalleryActivity.kt` – grid of everything on the device
 - `ViewerActivity.kt` – full-screen picture or video
 - `Media.kt` – reads pictures and videos from the device
