@@ -5,6 +5,10 @@ Each build uses the "Next" section as its release notes on GitHub, then renames 
 
 ## Next
 
+- (nothing yet)
+
+## v0.1.8
+
 - App updates now work the same way as in the other toddler apps. The app quietly checks for a new version (when the parent area opens, and at most every 6 hours otherwise) without popping anything up
 - When there is a new version, "App updates" in the parent settings turns red and says which version is ready
 - New versions screen: new versions with what changed at the top, then the installed version, then older versions behind "Show older versions", with a way to go back to one and to reinstall the current one
