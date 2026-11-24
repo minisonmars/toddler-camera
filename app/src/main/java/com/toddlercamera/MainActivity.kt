@@ -148,6 +148,8 @@ class MainActivity : ComponentActivity() {
         uiHandler.post(ticker)
         refreshThumbnail()
         if (cameraProvider != null && signature() != lastSig) bindUseCases()
+        // Quietly looks for a new version at most every 6 hours; only the parent area shows the result
+        Updater.checkInBackground(this)
     }
 
     override fun onPause() {

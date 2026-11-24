@@ -23,13 +23,14 @@ Hold the small **gear** in the top-right corner for two seconds, then enter the 
 - **Video**: quality (SD, HD, Full HD, 4K; the closest the phone supports is used); longest video of 1, 2 or 5 minutes or no limit; light on while recording.
 - **Toddler protection**: toddler lock (screen pinning, with the back button disabled) and an optional play time limit. When time is up the screen goes blank until a parent holds the gear and enters the PIN.
 - **Parent PIN**: change the PIN and set a recovery word. **Forgot PIN?** on the PIN screen resets it to the default if you give the recovery word. With no recovery word set, clear the app's storage in Android Settings (this also resets all settings).
+- **App updates**: shows the installed version, and turns red with "Version X is ready to install" when a newer one is on GitHub. **Check for updates or choose a version** opens the versions screen (see below).
 - **This device**: free storage space, back to the camera, and close the app.
 
 Notes: flash only works on a camera that has one (usually the back one), and in video "light on" means a steady torch. The app's own shutter sounds play at the media volume, so they are quiet if that is turned down. Location uses the phone's last known position, so it can be slightly out of date. Pinned apps can be left without the menu by holding Back and Overview together.
 
 ## Permissions
 
-Camera, microphone (for video sound) and access to pictures and videos (for the gallery). Internet is used only for checking and downloading app updates, and only from the parent area. The app asks when it first starts. Location is only asked for if a parent switches on "Save location".
+Camera, microphone (for video sound) and access to pictures and videos (for the gallery). Internet is used only for checking and downloading app updates from GitHub (a quiet check at most every 6 hours, and when the parent area opens). The app asks when it first starts. Location is only asked for if a parent switches on "Save location".
 
 ## Getting the APK
 
@@ -40,7 +41,20 @@ The app is built by GitHub Actions on every push to `main`, and each build publi
 
 The version number is the one set in `.github/workflows/build.yml` plus the build number. Every build is signed with the same key (`app/debug.keystore`), so new APKs install over the old one. That key is for personal testing only and is not suitable for the Play Store.
 
-To update, install the newest release over the old one (nothing is lost). You can also update from inside the app: open the parent area and, if a newer release exists, it asks **Install** or **Skip** (or use **App updates > Check for updates**). The first time, Android asks you to allow Toddler Camera to install apps; after that you just confirm on Android's own screen. The toddler never sees this.
+To update, install the newest release over the old one (nothing is lost), or update from inside the app.
+
+## In-app updates
+
+Works the same way as in the other toddler apps:
+
+- The app quietly checks GitHub for a new version when the parent area opens, and at most every 6 hours otherwise. It never pops anything up at the toddler.
+- When there is one, **App updates** in the parent settings turns red and says "Version X is ready to install (you have Y)".
+- **Check for updates or choose a version** opens the versions screen: new versions first (newest at the top, each with its date, size and what changed) and an **Install** button; then the installed version in green; then **Show older versions**, with a drop-down, its notes and **Go back to this version** (Android won't install an older version over a newer one, so this explains how to download, uninstall and install it); and **Reinstall**.
+- The first time, Android asks you to allow Toddler Camera to install apps; after that you just confirm on Android's own screen. The toddler lock is switched off while installing.
+
+## What's new
+
+`CHANGELOG.md` lists what changed in each version. Add bullets under `## Next` with each change; every build uses them as the GitHub release notes (shown on the versions screen), renames the section to the new version and commits it back (`.github/scripts/changelog.py`).
 
 ## Project layout
 
@@ -53,10 +67,11 @@ To update, install the newest release over the old one (nothing is lost). You ca
 - `Media.kt` – reads pictures and videos from the device
 - `Sounds.kt` – shutter and recording sounds
 - `Icons.kt` – the round buttons and their drawn icons (so they look the same on every phone)
-- `Updater.kt` and `InstallReceiver.kt` – in-app update check, download and install (parent area only)
+- `Updater.kt` and `InstallReceiver.kt` – automatic update check, versions screen, download and install
 - `Ui.kt` – colours and button helper
 - `app/src/main/res` – the app icon (an adaptive icon drawn as vectors, with a one-colour version for themed icons)
 - `.github/workflows/build.yml` – cloud build that produces the APK and publishes the release
+- `.github/scripts/changelog.py` and `CHANGELOG.md` – release notes
 
 ## Ideas for later
 

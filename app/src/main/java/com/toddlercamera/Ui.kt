@@ -9,6 +9,8 @@ object Ui {
     val PURPLE = Color.rgb(150, 90, 255)
     val ORANGE = Color.rgb(255, 150, 30)
     val RED = Color.rgb(230, 40, 40)
+    val GREEN = Color.rgb(52, 179, 122)
+    val GREY = Color.rgb(140, 140, 140)
     val DARK = Color.argb(120, 0, 0, 0)
 
     fun dp(ctx: Context, v: Int): Int = (v * ctx.resources.displayMetrics.density).toInt()

@@ -130,8 +130,9 @@ class ParentSettingsActivity : Activity() {
         button("Change PIN") { showChangePin() }
 
         header("App updates")
-        updateStatus = note("Version ${Updater.installedVersion(this)}")
-        button("Check for updates") { checkForUpdates(prompt = true) }
+        updateStatus = note("")
+        showUpdateStatus()
+        button("Check for updates or choose a version") { Updater.showDialog(this) }
 
         header("This device")
         note(String.format(Locale.UK, "Free space: %.1f GB", freeBytes() / 1e9))
@@ -146,81 +147,28 @@ class ParentSettingsActivity : Activity() {
 
         setContentView(ScrollView(this).apply { addView(col) })
 
-        // Opening the parent area quietly looks for an update and asks Install or Skip
-        checkForUpdates(prompt = false)
+        // Opening the parent area quietly checks GitHub for a new version (no pop-up)
+        Updater.checkInBackground(this, force = true) { if (!isFinishing) showUpdateStatus() }
     }
 
     // ---------- App updates ----------
     private lateinit var updateStatus: TextView
 
-    /** [prompt] true = the button was tapped, so report every result; false = only speak up for a new, unskipped version. */
-    private fun checkForUpdates(prompt: Boolean) {
-        val prefs = getSharedPreferences("updates", MODE_PRIVATE)
-        if (prompt) updateStatus.text = "Checking..."
-        Thread {
-            try {
-                val latest = Updater.fetchLatest()
-                val current = Updater.installedVersion(this)
-                runOnUiThread {
-                    if (isFinishing) return@runOnUiThread
-                    val newer = latest != null && Updater.isNewer(latest.version, current)
-                    if (latest == null || !newer) {
-                        if (prompt) updateStatus.text = "You have the latest version ($current)"
-                    } else {
-                        updateStatus.text = "Version ${latest.version} is available (you have $current)"
-                        if (prompt || latest.version != prefs.getString("skippedVersion", "")) {
-                            AlertDialog.Builder(this)
-                                .setTitle("Update available")
-                                .setMessage("Version ${latest.version} is available (you have $current). Install it now?")
-                                .setPositiveButton("Install") { _, _ -> startUpdate(latest) }
-                                .setNegativeButton("Skip") { _, _ ->
-                                    prefs.edit().putString("skippedVersion", latest.version).apply()
-                                }
-                                .show()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                if (prompt) runOnUiThread { updateStatus.text = "Couldn't check: ${e.message}" }
-            }
-        }.start()
-    }
-
-    private fun startUpdate(release: Updater.Release) {
-        if (!packageManager.canRequestPackageInstalls()) {
-            AlertDialog.Builder(this)
-                .setTitle("Allow updates")
-                .setMessage(
-                    "Android needs you to allow this app to install updates. Tap Open settings, switch on " +
-                        "\"Allow from this source\", then come back and tap Check for updates again."
-                )
-                .setPositiveButton("Open settings") { _, _ ->
-                    startActivity(
-                        Intent(AndroidSettings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
-                    )
-                }
-                .setNegativeButton("Cancel", null)
-                .show()
-            return
+    /** Red "Version X is ready to install" when GitHub has a newer one, otherwise the installed version. */
+    private fun showUpdateStatus() {
+        val current = Updater.installed(this)
+        val newVersion = Updater.available(this)
+        if (newVersion != null) {
+            updateStatus.text = "Version $newVersion is ready to install (you have $current)"
+            updateStatus.setTextColor(Ui.RED)
+            updateStatus.textSize = 15f
+            updateStatus.typeface = Typeface.DEFAULT_BOLD
+        } else {
+            updateStatus.text = "You have version $current"
+            updateStatus.setTextColor(Color.GRAY)
+            updateStatus.textSize = 13f
+            updateStatus.typeface = Typeface.DEFAULT
         }
-        // Screen pinning would block Android's install screen
-        try {
-            stopLockTask()
-        } catch (e: Exception) {
-        }
-        val file = File(cacheDir, "update.apk")
-        updateStatus.text = "Downloading..."
-        Thread {
-            try {
-                Updater.download(release.apkUrl, file) { percent ->
-                    runOnUiThread { updateStatus.text = "Downloading... $percent%" }
-                }
-                runOnUiThread { updateStatus.text = "Installing... confirm on the screen that appears" }
-                Updater.install(this, file)
-            } catch (e: Exception) {
-                runOnUiThread { updateStatus.text = "Update failed: ${e.message}" }
-            }
-        }.start()
     }
 
     // ---------- Row helpers ----------
