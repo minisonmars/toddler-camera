@@ -69,6 +69,7 @@ Works the same way as in the other toddler apps:
 - `Icons.kt` – the round buttons and their drawn icons (so they look the same on every phone)
 - `Updater.kt` and `InstallReceiver.kt` – automatic update check, versions screen, download and install
 - `Ui.kt` – colours and button helper
+- `Insets.kt` – pads screens around the status bar, navigation bar and keyboard (needed since the app targets API 35, which updates without the confirm screen require)
 - `app/src/main/res` – the app icon (an adaptive icon drawn as vectors, with a one-colour version for themed icons)
 - `.github/workflows/build.yml` – cloud build that produces the APK and publishes the release
 - `.github/scripts/changelog.py` and `CHANGELOG.md` – release notes

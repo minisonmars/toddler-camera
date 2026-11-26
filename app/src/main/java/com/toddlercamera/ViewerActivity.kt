@@ -73,7 +73,7 @@ class ViewerActivity : Activity() {
                 bottomMargin = Ui.dp(this@ViewerActivity, 36)
             }
         )
-        setContentView(root)
+        setContentView(root.fitSystemBars())
         show(index)
     }
 

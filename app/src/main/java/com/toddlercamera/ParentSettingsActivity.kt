@@ -145,7 +145,7 @@ class ParentSettingsActivity : Activity() {
             finishAffinity()
         }
 
-        setContentView(ScrollView(this).apply { addView(col) })
+        setContentView(ScrollView(this).apply { addView(col) }.fitSystemBars())
 
         // Opening the parent area quietly checks GitHub for a new version (no pop-up)
         Updater.checkInBackground(this, force = true) { if (!isFinishing) showUpdateStatus() }

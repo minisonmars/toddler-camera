@@ -262,7 +262,7 @@ class MainActivity : ComponentActivity() {
             }
         )
         root.addView(timeUpView, matchParent())
-        setContentView(root)
+        setContentView(root.fitSystemBars())
 
         // Actions
         photoModeBtn.setOnClickListener { setMode(false) }
