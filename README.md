@@ -39,7 +39,7 @@ The app is built by GitHub Actions on every push to `main`, and each build publi
 1. Open the repo's **Releases** page (github.com/minisonmars/toddler-camera/releases).
 2. Tap the APK under **Assets** and open it on the phone. Allow installs from your browser or files app when prompted.
 
-The version number is the one set in `.github/workflows/build.yml` plus the build number. Every build is signed with the same key (`app/debug.keystore`), so new APKs install over the old one. That key is for personal testing only and is not suitable for the Play Store.
+The version number is the one set in `.github/workflows/build.yml` plus the build number. Every build is a release (non-debuggable) build signed with the same key (`app/debug.keystore`), so new APKs install over the old one. That key is for personal testing only and is not suitable for the Play Store.
 
 To update, install the newest release over the old one (nothing is lost), or update from inside the app.
 
@@ -50,7 +50,7 @@ Works the same way as in the other toddler apps:
 - The app quietly checks GitHub for a new version when the parent area opens, and at most every 6 hours otherwise. It never pops anything up at the toddler.
 - When there is one, **App updates** in the parent settings turns red and says "Version X is ready to install (you have Y)".
 - **Check for updates or choose a version** opens the versions screen: new versions first (newest at the top, each with its date, size and what changed) and an **Install** button; then the installed version in green; then **Show older versions**, with a drop-down, its notes and **Go back to this version** (Android won't install an older version over a newer one, so this explains how to download, uninstall and install it); and **Reinstall**.
-- The first time, Android asks you to allow Toddler Camera to install apps; after that you just confirm on Android's own screen. The toddler lock is switched off while installing.
+- The first time, Android asks you to allow Toddler Camera to install apps; after that, on Android 12 and later, updates go straight in without Android's confirm screen once the app installed the previous version itself (the first self-update still shows it once). The app closes when the update is in. The toddler lock is switched off while installing.
 
 ## What's new
 
