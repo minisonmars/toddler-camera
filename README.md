@@ -49,7 +49,7 @@ Works the same way as in the other toddler apps:
 
 - The app quietly checks GitHub for a new version when the parent area opens, and at most every 6 hours otherwise. It never pops anything up at the toddler.
 - When there is one, **App updates** in the parent settings turns red and says "Version X is ready to install (you have Y)".
-- **Check for updates or choose a version** opens the versions screen: new versions first (newest at the top, each with its date, size and what changed) and an **Install** button; then the installed version in green; then **Show older versions**, with a drop-down, its notes and **Go back to this version** (Android won't install an older version over a newer one, so this explains how to download, uninstall and install it); and **Reinstall**.
+- **Check for updates or choose a version** opens the versions screen: new versions first (newest at the top, each with its date, size, what changed and its own **Install version X** button); then the installed version in green with **Reinstall**; then **Show older versions**, listing each older version with its notes and its own **Go back to version X** button (Android won't install an older version over a newer one, so this explains how to download, uninstall and install it; pictures and videos stay in the phone's gallery, but settings and the PIN are reset).
 - The first time, Android asks you to allow Toddler Camera to install apps; after that, on Android 12 and later, updates go straight in without Android's confirm screen once the app installed the previous version itself (the first self-update still shows it once). The app closes when the update is in. The toddler lock is switched off while installing.
 
 ## What's new
